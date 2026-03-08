@@ -1,7 +1,5 @@
 FROM python:3.12
 
-ARG USE_UV=""
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core utilities
     coreutils findutils grep sed gawk diffutils patch \
@@ -39,20 +37,14 @@ RUN curl -fsSL https://get.docker.com | sh
 
 WORKDIR /app
 
-RUN if [ "$USE_UV" = "true" ]; then
-        pip install --no-cache-dir uv;
-    fi
-
-ENV PKGM=${USE_UV:+uv pip}
-ENV PKGM=${PKGM:-pip}
-ENV UV_SYSTEM_PYTHON=${USE_UV:+1}
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Cached separately, re-runs if core-requirements.txt changes
 COPY core-requirements.txt .
-RUN $PKGM install --no-cache-dir -r core-requirements.txt
+RUN uv pip install --no-cache-dir --system -r core-requirements.txt
 
 COPY . .
-RUN $PKGM install --no-cache-dir .
+RUN uv pip install --no-cache-dir --system .
 
 RUN useradd -m -s /bin/bash user && echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER user
