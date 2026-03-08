@@ -1,5 +1,7 @@
 FROM python:3.12
 
+ARG USE_UV=""
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core utilities
     coreutils findutils grep sed gawk diffutils patch \
@@ -37,19 +39,20 @@ RUN curl -fsSL https://get.docker.com | sh
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir \
-    numpy pandas scipy scikit-learn \
-    matplotlib seaborn plotly \
-    jupyter ipython \
-    requests beautifulsoup4 lxml \
-    sqlalchemy psycopg2-binary \
-    pyyaml toml jsonlines \
-    tqdm rich \
-    openpyxl weasyprint \
-    python-docx python-pptx pypdf csvkit
+RUN if [ "$USE_UV" = "true" ]; then
+        pip install --no-cache-dir uv;
+    fi
+
+ENV PKGM=${USE_UV:+uv pip}
+ENV PKGM=${PKGM:-pip}
+ENV UV_SYSTEM_PYTHON=${USE_UV:+1}
+
+# Cached separately, re-runs if core-requirements.txt changes
+COPY core-requirements.txt .
+RUN $PKGM install --no-cache-dir -r core-requirements.txt
 
 COPY . .
-RUN pip install --no-cache-dir .
+RUN $PKGM install --no-cache-dir .
 
 RUN useradd -m -s /bin/bash user && echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER user
